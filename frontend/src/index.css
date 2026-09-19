@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #0c0e14;
+    --bg-secondary: #111318;
+    --bg-surface: #161820;
+    --bg-elevated: #1c1f28;
+    --accent-cyan: #00d4ff;
+    --accent-violet: #8b5cf6;
+    --text-primary: #e5e7eb;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.1);
+  }
+
+  * {
+    @apply border-white/[0.06];
+  }
+
+  body {
+    @apply bg-surface-50 text-gray-200 antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer components {
+  /* === BUTTONS === */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-surface-50 disabled:opacity-40 disabled:pointer-events-none select-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent/90 text-surface-50 hover:bg-accent hover:shadow-glow-sm active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 hover:border-white/15 active:scale-[0.98];
+  }
+
+  .btn-danger {
+    @apply btn bg-rail-red/90 text-white hover:bg-rail-red hover:shadow-glow-red active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5;
+  }
+
+  .btn-violet {
+    @apply btn bg-violet/90 text-white hover:bg-violet hover:shadow-glow-violet active:scale-[0.98];
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  /* === INPUTS === */
+  .input {
+    @apply flex h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 transition-all duration-200;
+  }
+
+  .input:hover {
+    @apply border-white/15;
+  }
+
+  select.input {
+    @apply appearance-none bg-[length:16px] bg-[right_12px_center] bg-no-repeat cursor-pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  /* === CARDS === */
+  .card {
+    @apply rounded-xl border border-white/[0.06] bg-surface-100 shadow-inner-glow;
+  }
+
+  .card-glow {
+    @apply card border-accent/20 shadow-glow-sm;
+  }
+
+  .card-elevated {
+    @apply card bg-surface-200;
+  }
+
+  /* === BADGES === */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider;
+  }
+
+  .badge-live {
+    @apply badge bg-rail-green/15 text-rail-green border border-rail-green/20;
+  }
+
+  .badge-sim {
+    @apply badge bg-violet/15 text-violet-300 border border-violet/20;
+  }
+
+  .badge-delayed {
+    @apply badge bg-rail-amber/15 text-rail-amber border border-rail-amber/20;
+  }
+
+  .badge-critical {
+    @apply badge bg-rail-red/15 text-rail-red border border-rail-red/20;
+  }
+
+  .badge-info {
+    @apply badge bg-rail-blue/15 text-rail-blue border border-rail-blue/20;
+  }
+
+  .badge-success {
+    @apply badge bg-rail-green/15 text-rail-green border border-rail-green/20;
+  }
+
+  .badge-warning {
+    @apply badge bg-rail-amber/15 text-rail-amber border border-rail-amber/20;
+  }
+
+  .badge-neutral {
+    @apply badge bg-white/5 text-gray-400 border border-white/10;
+  }
+
+  .badge-ghost {
+    @apply badge bg-transparent text-gray-500 border border-white/5;
+  }
+
+  /* === METRIC CARDS === */
+  .metric-card {
+    @apply card p-5 relative overflow-hidden;
+  }
+
+  .metric-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none;
+  }
+
+  /* === ANIMATIONS === */
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .live-dot {
+    @apply relative;
+  }
+  .live-dot::after {
+    content: '';
+    @apply absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rail-green;
+    animation: glow-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  }
+
+  /* === TABLE === */
+  .table-row {
+    @apply border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors duration-150;
+  }
+
+  .table-header {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-gray-500;
+  }
+
+  /* === SIDEBAR === */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-gray-400 hover:text-gray-200 hover:bg-white/[0.04];
+  }
+
+  .sidebar-item.active {
+    @apply text-accent bg-accent/[0.08] relative;
+  }
+
+  .sidebar-item.active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-accent rounded-r-full;
+  }
+}
+
+/* === LEAFLET MAP OVERRIDES === */
+.leaflet-container {
+  background: #111318 !important;
+  border-radius: 12px;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(0.7) contrast(1.2) saturate(0.3) hue-rotate(180deg);
+}
+
+.leaflet-control-zoom a {
+  background: #161820 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #161820 !important;
+  color: #e5e7eb !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+}
+
+.leaflet-popup-tip {
+  background: #161820 !important;
+}
+
+.train-marker {
+  transform: translate(-50%, -50%);
+}
+
+.station-marker {
+  transform: translate(-50%, -50%);
+}
+
+/* === REDUCED MOTION === */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
