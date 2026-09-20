@@ -1,0 +1,42 @@
+# OS / editor
+.vscode/
+.idea/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+env/
+ENV/
+
+# Node / frontend build
+node_modules/
+dist/
+*.local
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Raw SIH reference data (also duplicated under indian-railways-predict-train-delay/)
+indian-railways-predict-train-delay/
+*.zip
+*.xlsx
+
+# Generated data artifacts (large CSVs, intermediate/audit outputs)
+*.csv
+
+# Stray dashboard package-lock at repo root of dashboard (no package.json there)
+dashboard/package-lock.json
+
+# Dev cruft (per AGENTS.md, not part of the deliverable)
+aaa
+bbb.py
+ccc.py
+ddd.py
+sample_test1.py
+sample_test2.py
