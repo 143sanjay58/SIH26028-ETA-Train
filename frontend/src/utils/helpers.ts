@@ -137,6 +137,7 @@ export function getDataSourceLabel(source: string): string {
     ESTIMATED: 'Estimated',
     GPS_DERIVED: 'GPS Derived',
     WEATHER_API: 'Weather API',
+    SIH_ETA_CORE: 'SIH ETA Core',
   };
   return labels[source] || source;
 }
@@ -149,6 +150,49 @@ export function getDataSourceBadgeClass(source: string): string {
     case 'ESTIMATED': return 'bg-rail-amber/15 text-rail-amber border border-rail-amber/20';
     case 'GPS_DERIVED': return 'bg-accent/15 text-accent border border-accent/20';
     case 'WEATHER_API': return 'bg-violet/15 text-violet-300 border border-violet/20';
+    case 'SIH_ETA_CORE': return 'badge-sih-eta';
+    default: return 'badge-neutral';
+  }
+}
+
+export function roleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    PASSENGER: 'Passenger',
+    STATION_STAFF: 'Train Co-Pilot',
+    SUPERVISOR: 'Control Room',
+    OPERATOR: 'Control Room',
+    ADMIN: 'Control Room',
+  };
+  return labels[role] || role.replace(/_/g, ' ');
+}
+
+export function getCoPilotReasonLabel(reason: string): string {
+  const labels: Record<string, string> = {
+    SIGNAL_ISSUE: 'Signal Issue',
+    TRACK_OBSTRUCTION: 'Track Obstruction',
+    TECHNICAL_ISSUE: 'Technical Issue',
+    OPERATIONAL_ISSUE: 'Operational Issue',
+    PASSENGER_RELATED: 'Passenger Related',
+    WEATHER_RELATED: 'Weather Related',
+    OTHER: 'Other',
+  };
+  return labels[reason] || reason.replace(/_/g, ' ');
+}
+
+export function getCoPilotPriorityBadge(priority: string): string {
+  switch (priority) {
+    case 'HIGH': return 'badge-critical';
+    case 'MEDIUM': return 'badge-warning';
+    case 'LOW': return 'badge-info';
+    default: return 'badge-neutral';
+  }
+}
+
+export function getCoPilotStatusBadge(status: string): string {
+  switch (status) {
+    case 'NEW': return 'badge-critical';
+    case 'ACKNOWLEDGED': return 'badge-warning';
+    case 'CLOSED': return 'badge-neutral';
     default: return 'badge-neutral';
   }
 }

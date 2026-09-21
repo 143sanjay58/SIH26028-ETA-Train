@@ -48,6 +48,7 @@ export function TopBar({ onMenuClick, pageTitle }: { onMenuClick: () => void; pa
     '/analytics': 'Analytics',
     '/simulation': 'Simulation Lab',
     '/station-master': 'Station Operations',
+    '/co-pilot': 'Train Co-Pilot',
     '/control-room': 'Railway Operations Center',
     '/system-health': 'System Status',
     '/settings': 'Profile',

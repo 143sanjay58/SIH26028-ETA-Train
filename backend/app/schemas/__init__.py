@@ -33,6 +33,8 @@ from backend.app.schemas.prediction import (
     PredictionExplanationResponse,
     ETARequest,
     ETAResponse,
+    SIHUpcomingStation,
+    SIHETAResponse,
 )
 from backend.app.schemas.weather import (
     WeatherObservationResponse,
@@ -102,6 +104,8 @@ __all__ = [
     "PredictionExplanationResponse",
     "ETARequest",
     "ETAResponse",
+    "SIHUpcomingStation",
+    "SIHETAResponse",
     # Weather
     "WeatherObservationResponse",
     "WeatherForecastResponse",

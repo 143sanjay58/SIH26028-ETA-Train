@@ -9,7 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.database.session import AsyncSessionLocal, init_db
-from backend.app.models.train import Train, TrainSchedule, TrainStatus, TrainType
+from backend.app.models.train import (
+    Train,
+    TrainSchedule,
+    TrainStatus,
+    TrainType,
+    TrainPosition,
+)
 from backend.app.models.station import Station, StationType
 from backend.app.models.route import Route, RouteSection
 from backend.app.models.user import User, UserRole
@@ -37,6 +43,13 @@ async def seed_stations(db: AsyncSession) -> list[Station]:
         {"code": "LDH", "name": "Ludhiana Junction", "lat": 30.9086, "lon": 75.8573, "type": StationType.JUNCTION, "zone": "NR", "division": "Firozpur", "state": "Punjab", "platforms": 7, "junction": True},
         {"code": "JAT", "name": "Jammu Tawi", "lat": 32.7186, "lon": 74.8581, "type": StationType.TERMINAL, "zone": "NR", "division": "Firozpur", "state": "Jammu & Kashmir", "platforms": 3, "junction": False},
         {"code": "ERS", "name": "Ernakulam Junction", "lat": 9.9816, "lon": 76.2895, "type": StationType.JUNCTION, "zone": "SR", "division": "Thiruvananthapuram", "state": "Kerala", "platforms": 6, "junction": True},
+        {"code": "LLH", "name": "Liluah", "lat": 22.6230, "lon": 88.3070, "type": StationType.HALT, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 3, "junction": False},
+        {"code": "BEQ", "name": "Belur Math", "lat": 22.6370, "lon": 88.2790, "type": StationType.HALT, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 2, "junction": False},
+        {"code": "BLY", "name": "Bally", "lat": 22.6430, "lon": 88.2690, "type": StationType.HALT, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 2, "junction": False},
+        {"code": "BZL", "name": "Belanagar", "lat": 22.6300, "lon": 88.2540, "type": StationType.HALT, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 2, "junction": False},
+        {"code": "DKAE", "name": "Dankuni", "lat": 22.6810, "lon": 88.2980, "type": StationType.JUNCTION, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 4, "junction": True},
+        {"code": "GBRA", "name": "Gobra", "lat": 22.6470, "lon": 88.3120, "type": StationType.HALT, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 2, "junction": False},
+        {"code": "JOX", "name": "Janai Road", "lat": 23.0830, "lon": 88.1710, "type": StationType.JUNCTION, "zone": "ER", "division": "Howrah", "state": "West Bengal", "platforms": 3, "junction": True},
     ]
 
     stations = []
@@ -103,6 +116,12 @@ async def seed_routes(db: AsyncSession, stations: list[Station]) -> list[Route]:
             "name": "Mumbai - Howrah via Nagpur",
             "stations": ["CSTM", "KYN", "NGP", "BZA", "HWH"],
             "distances": [0, 50, 1000, 1400, 1900],
+        },
+        {
+            "code": "LLH-JOX",
+            "name": "Liluah - Janai Road Chord (SIH26028 demo route)",
+            "stations": ["LLH", "BEQ", "BLY", "BZL", "DKAE", "GBRA", "JOX"],
+            "distances": [0, 12, 18, 25, 42, 60, 190],
         },
     ]
 
@@ -246,6 +265,17 @@ async def seed_trains(db: AsyncSession, stations: list[Station], routes: list[Ro
             "departure": "18:30",
             "arrival": "06:00+1",
         },
+        {
+            "number": "12303",
+            "name": "SIH ETA Demo Express",
+            "type": TrainType.EXPRESS,
+            "origin": "LLH",
+            "destination": "JOX",
+            "route": "LLH-JOX",
+            "stops": ["LLH", "BEQ", "BLY", "BZL", "DKAE", "GBRA", "JOX"],
+            "departure": "17:30",
+            "arrival": "21:30",
+        },
     ]
 
     trains = []
@@ -344,12 +374,14 @@ async def seed_trains(db: AsyncSession, stations: list[Station], routes: list[Ro
 
 async def seed_users(db: AsyncSession, stations: list[Station]) -> list[User]:
     """Create default users"""
+    station_map = {s.code: s for s in stations}
     users_data = [
         {"username": "admin", "email": "admin@railintel.in", "name": "System Administrator", "role": UserRole.ADMIN, "password": "admin123", "station_id": None},
         {"username": "operator", "email": "operator@railintel.in", "name": "Control Room Operator", "role": UserRole.OPERATOR, "password": "operator123", "station_id": None},
         {"username": "supervisor", "email": "supervisor@railintel.in", "name": "Division Supervisor", "role": UserRole.SUPERVISOR, "password": "supervisor123", "station_id": stations[0].id},
         {"username": "station_master", "email": "sm.ndls@railintel.in", "name": "Station Master NDLS", "role": UserRole.STATION_STAFF, "password": "station123", "station_id": stations[0].id},
         {"username": "passenger", "email": "passenger@example.com", "name": "Demo Passenger", "role": UserRole.PASSENGER, "password": "passenger123", "station_id": None},
+        {"username": "copilot", "email": "copilot.llh@railintel.in", "name": "Train Co-Pilot Liluah", "role": UserRole.STATION_STAFF, "password": "copilot123", "station_id": station_map["LLH"].id if "LLH" in station_map else stations[0].id},
     ]
 
     users = []
@@ -372,6 +404,37 @@ async def seed_users(db: AsyncSession, stations: list[Station]) -> list[User]:
     return users
 
 
+async def seed_sih_demo(db: AsyncSession, stations: list[Station], trains: list[Train]) -> None:
+    """Seed the SIH26028 demo train (12303) checked in at BEQ with ~17 min delay."""
+    station_map = {s.code: s for s in stations}
+    beq = station_map.get("BEQ")
+    bly = station_map.get("BLY")
+    demo = next((t for t in trains if t.train_number == "12303"), None)
+    if demo is None or beq is None or bly is None:
+        logger.info("SIH demo train skipped (train 12303 / BEQ / BLY not seeded)")
+        return
+
+    position = TrainPosition(
+        train_id=demo.id,
+        latitude=beq.latitude,
+        longitude=beq.longitude,
+        speed_kmh=28.0,
+        heading=300.0,
+        current_station_id=beq.id,
+        next_station_id=bly.id,
+        distance_travelled_km=12.0,
+        delay_minutes=17,
+        timestamp=datetime.now(timezone.utc),
+        source="SIMULATION",
+        is_valid=True,
+    )
+    db.add(position)
+    demo.status = TrainStatus.DELAYED
+    demo.is_active = True
+    await db.flush()
+    logger.info("SIH demo train position seeded", train=demo.train_number, delay=position.delay_minutes)
+
+
 async def main():
     await init_db()
 
@@ -383,6 +446,7 @@ async def main():
             routes = await seed_routes(db, stations)
             trains = await seed_trains(db, stations, routes)
             users = await seed_users(db, stations)
+            await seed_sih_demo(db, stations, trains)
 
             await db.commit()
             logger.info("Database seeding completed successfully!")

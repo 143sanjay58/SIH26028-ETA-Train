@@ -6,6 +6,12 @@ from backend.app.models.weather import WeatherObservation, WeatherForecast
 from backend.app.models.congestion import CongestionState
 from backend.app.models.alert import Alert
 from backend.app.models.user import User, UserRole as Role
+from backend.app.models.copilot_report import (
+    CoPilotReport,
+    CoPilotReportReason,
+    CoPilotReportPriority,
+    CoPilotReportStatus,
+)
 from backend.app.models.model_version import ModelVersion, ModelMetrics
 from backend.app.models.audit import AuditLog
 
@@ -27,6 +33,10 @@ __all__ = [
     "Alert",
     "User",
     "Role",
+    "CoPilotReport",
+    "CoPilotReportReason",
+    "CoPilotReportPriority",
+    "CoPilotReportStatus",
     "ModelVersion",
     "ModelMetrics",
     "AuditLog",

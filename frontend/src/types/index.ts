@@ -281,7 +281,7 @@ export type SimulationScenario =
   | 'CASCADING_DELAY'
   | 'RECOVERY';
 
-export type DataSource = 'LIVE' | 'CACHED' | 'SIMULATION' | 'ESTIMATED' | 'GPS_DERIVED' | 'WEATHER_API';
+export type DataSource = 'LIVE' | 'CACHED' | 'SIMULATION' | 'ESTIMATED' | 'GPS_DERIVED' | 'WEATHER_API' | 'SIH_ETA_CORE';
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -306,4 +306,85 @@ export interface HealthResponse {
   database: string;
   redis: string;
   timestamp: string;
+}
+
+export interface SIHUpcomingStation {
+  station_code: string;
+  station_name: string;
+  route_position: number;
+  scheduled_remaining_minutes: number;
+  predicted_remaining_minutes: number;
+  predicted_arrival_delay_minutes: number;
+  predicted_eta: string;
+}
+
+export interface SIHETAResponse {
+  train_number: string;
+  train_name: string;
+  current_station: string;
+  current_station_name?: string;
+  current_route_position: number;
+  current_delay_minutes: number;
+  current_time?: string;
+  destination_station?: string;
+  destination_station_name?: string;
+  predicted_arrival_delay_minutes: number;
+  predicted_arrival_time: string;
+  predicted_remaining_minutes: number;
+  upcoming_station_count: number;
+  upcoming_stations: SIHUpcomingStation[];
+  confidence_score?: number;
+  confidence_level?: string;
+  impact_severity?: string;
+  delay_trend?: string;
+  route_impact?: string;
+  model_type?: string;
+  model_version?: string;
+  data_source: DataSource;
+  position_source?: string;
+  generated_at: string;
+}
+
+export type CoPilotReportReason =
+  | 'SIGNAL_ISSUE'
+  | 'TRACK_OBSTRUCTION'
+  | 'TECHNICAL_ISSUE'
+  | 'OPERATIONAL_ISSUE'
+  | 'PASSENGER_RELATED'
+  | 'WEATHER_RELATED'
+  | 'OTHER';
+
+export type CoPilotReportPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export type CoPilotReportStatus = 'NEW' | 'ACKNOWLEDGED' | 'CLOSED';
+
+export interface CoPilotReport {
+  id: number;
+  train_id?: number;
+  user_id: number;
+  station_id?: number;
+  train_number: string;
+  station_code?: string;
+  reason: CoPilotReportReason;
+  priority: CoPilotReportPriority;
+  message: string;
+  current_delay_minutes: number;
+  status: CoPilotReportStatus;
+  is_active: boolean;
+  acknowledged_by?: number;
+  acknowledged_at?: string;
+  closed_by?: number;
+  closed_at?: string;
+  created_at: string;
+  updated_at: string;
+  reporter_call_sign?: string;
+}
+
+export interface CoPilotReportCreate {
+  train_number: string;
+  station_code?: string;
+  reason: CoPilotReportReason;
+  priority: CoPilotReportPriority;
+  message: string;
+  current_delay_minutes: number;
 }

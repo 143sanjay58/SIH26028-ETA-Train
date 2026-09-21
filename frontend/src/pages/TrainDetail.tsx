@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { trainApi, predictionApi, weatherApi, alertApi, stationApi } from '../services/api';
+import { trainApi, predictionApi, weatherApi, alertApi, stationApi, sihEtaApi } from '../services/api';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import { cn, formatTime } from '../utils/helpers';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { StatusBadge, SourceBadge } from '../components/ui/StatusBadge';
 import { ETACard } from '../components/train/ETACard';
+import { SIHETACard } from '../components/train/SIHETACard';
 import { SpeedGauge } from '../components/ui/SpeedGauge';
 import { RailwayMap } from '../components/train/RailwayMap';
 import { StationTimeline } from '../components/train/StationTimeline';
@@ -23,7 +24,7 @@ import { DelayExplanation } from '../components/train/DelayExplanation';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import type { TrainLiveResponse, ETAResponse, WeatherResponse, Alert, Train, TrainSchedule, Station } from '../types';
+import type { TrainLiveResponse, ETAResponse, WeatherResponse, Alert, Train, TrainSchedule, Station, SIHETAResponse } from '../types';
 
 function useStateExport(trainNumber: string) {
   useEffect(() => {
@@ -40,11 +41,13 @@ export default function TrainDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const wasNotFound = (location.state as { notFound?: boolean } | null)?.notFound;
-  const { subscribeToTrain, unsubscribeFromTrain, onTrainUpdate, isConnected } = useWebSocket();
+  const { subscribeToTrain, unsubscribeFromTrain, onTrainUpdate, onEtaUpdate, isConnected } = useWebSocket();
 
   const [train, setTrain] = useState<Train | null>(null);
   const [liveData, setLiveData] = useState<TrainLiveResponse | null>(null);
   const [etaData, setEtaData] = useState<ETAResponse | null>(null);
+  const [sihEta, setSihEta] = useState<SIHETAResponse | null>(null);
+  const [sihEtaLoading, setSihEtaLoading] = useState(false);
   const [route, setRoute] = useState<TrainSchedule[]>([]);
   const [weather, setWeather] = useState<WeatherResponse | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -96,6 +99,15 @@ export default function TrainDetail() {
         if (pos && pos[0] && !liveRes?.data) {
           setLiveData({ train: tr.data, current_position: pos[0], current_speed_kmh: pos[0].speed_kmh, average_speed_kmh: pos[0].speed_kmh, distance_travelled_km: pos[0].distance_travelled_km, distance_remaining_km: 0, current_delay_minutes: pos[0].delay_minutes, delay_trend: 'STABLE', data_source: pos[0].source } as TrainLiveResponse);
         }
+
+        setSihEtaLoading(true);
+        void sihEtaApi.getETA(trainNumber).then((res) => {
+          if (!cancelled) setSihEta(res.data);
+        }).catch(() => {
+          if (!cancelled) setSihEta(null);
+        }).finally(() => {
+          if (!cancelled) setSihEtaLoading(false);
+        });
       } catch {
         if (!cancelled) setError('Train not found. Check the number and try again.');
       } finally {
@@ -111,10 +123,17 @@ export default function TrainDetail() {
       }
     });
 
+    const unsubEta = onEtaUpdate((data) => {
+      if (data && typeof data === 'object' && 'train_id' in data && (data as { train_id: number }).train_id === trainId) {
+        fetchAll();
+      }
+    });
+
     return () => {
       cancelled = true;
       if (trainId) unsubscribeFromTrain(trainId);
       unsub();
+      unsubEta();
     };
   }, [trainNumber]);
 
@@ -231,7 +250,8 @@ export default function TrainDetail() {
           </dl>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
+          <SIHETACard eta={sihEta} loading={sihEtaLoading} />
           <ETACard eta={etaData} />
         </div>
       </div>

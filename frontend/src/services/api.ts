@@ -11,6 +11,9 @@ import type {
   CongestionState,
   SimulationStatus,
   SimulationScenario,
+  SIHETAResponse,
+  CoPilotReport,
+  CoPilotReportCreate,
   PaginatedResponse,
   ListResponse,
   HealthResponse,
@@ -88,6 +91,19 @@ export const predictionApi = {
     api.get<ETAResponse>(`/predictions/eta/${trainNumber}`, { params }),
   predictETA: (trainNumber: string, data?: { include_explanations?: boolean; include_uncertainty?: boolean }) =>
     api.post<ETAResponse>('/predictions/eta', { train_number: trainNumber, ...data }),
+};
+
+export const sihEtaApi = {
+  getETA: (trainNumber: string) => api.get<SIHETAResponse>(`/predictions/eta/sih/${trainNumber}`),
+};
+
+export const copilotApi = {
+  createReport: (data: CoPilotReportCreate) => api.post<CoPilotReport>('/copilot/reports', data),
+  myReports: (params?: { limit?: number }) => api.get<CoPilotReport[]>('/copilot/reports/mine', { params }),
+  listReports: (params?: { status?: string; reason?: string; priority?: string; train_number?: string; limit?: number }) =>
+    api.get<CoPilotReport[]>('/control-room/reports', { params }),
+  acknowledge: (reportId: number) => api.post<CoPilotReport>(`/control-room/reports/${reportId}/acknowledge`),
+  close: (reportId: number) => api.post<CoPilotReport>(`/control-room/reports/${reportId}/close`),
 };
 
 export const weatherApi = {

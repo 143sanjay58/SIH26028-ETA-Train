@@ -15,6 +15,7 @@ import Analytics from './pages/Analytics';
 import SimulationLab from './pages/SimulationLab';
 import StationMaster from './pages/StationMaster';
 import ControlRoom from './pages/ControlRoom';
+import CoPilot from './pages/CoPilot';
 import SystemHealth from './pages/SystemHealth';
 import Settings from './pages/Settings';
 
@@ -44,7 +45,9 @@ function App() {
   if (isLoading) return <FullScreenLoader />;
 
   const rest =
-    user && ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'].includes(user.role) ? <Navigate to="/control-room" replace /> : user ? <Navigate to="/" replace /> : null;
+    user?.role === 'STATION_STAFF' ? <Navigate to="/co-pilot" replace /> :
+    user && ['SUPERVISOR', 'OPERATOR', 'ADMIN'].includes(user.role) ? <Navigate to="/control-room" replace /> :
+    user ? <Navigate to="/" replace /> : null;
 
   return (
     <Routes>
@@ -84,6 +87,14 @@ function App() {
           element={
             <PrivateRoute allowedRoles={['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN']}>
               <StationMaster />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="co-pilot"
+          element={
+            <PrivateRoute allowedRoles={['STATION_STAFF']}>
+              <CoPilot />
             </PrivateRoute>
           }
         />

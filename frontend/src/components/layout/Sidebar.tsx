@@ -14,11 +14,12 @@ import {
   User,
   LogOut,
   Radio,
+  RadioTower,
   PanelLeftClose,
   PanelLeft,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { cn } from '../../utils/helpers';
+import { cn, roleLabel } from '../../utils/helpers';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
@@ -43,6 +44,7 @@ const railwayItems: NavItem[] = [
   { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
   { path: '/simulation', label: 'Simulation Lab', icon: FlaskConical, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
   { path: '/station-master', label: 'Station Operations', icon: Building2, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
+  { path: '/co-pilot', label: 'Train Co-Pilot', icon: RadioTower, roles: ['STATION_STAFF'] },
   { path: '/control-room', label: 'Control Room', icon: Radio, roles: ['SUPERVISOR', 'OPERATOR', 'ADMIN'] },
 ];
 
@@ -143,7 +145,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolea
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-200 truncate">{user.full_name || user.username}</p>
-              <p className="text-[11px] text-gray-500 capitalize">{user.role.toLowerCase().replace('_', ' ')}</p>
+              <p className="text-[11px] text-gray-500 capitalize">{roleLabel(user.role)}</p>
             </div>
           </div>
         )}

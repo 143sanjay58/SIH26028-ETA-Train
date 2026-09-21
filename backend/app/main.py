@@ -16,6 +16,7 @@ from backend.app.api.routes import (
     alerts,
     congestion,
     simulation,
+    copilot,
 )
 from backend.app.realtime.websocket_manager import manager, websocket_endpoint
 from backend.app.simulation.engine import simulation_engine
@@ -87,6 +88,7 @@ app.include_router(weather.router)
 app.include_router(alerts.router)
 app.include_router(congestion.router)
 app.include_router(simulation.router)
+app.include_router(copilot.router)
 
 
 @app.get("/")

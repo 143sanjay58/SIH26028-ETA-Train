@@ -4,11 +4,36 @@ from typing import Optional
 
 from backend.app.database.session import get_db
 from backend.app.services.eta_service import ETAService
-from backend.app.schemas.prediction import ETARequest, ETAResponse, PredictionResponse
+from backend.app.schemas.prediction import (
+    ETARequest,
+    ETAResponse,
+    PredictionResponse,
+    SIHETAResponse,
+)
 from backend.app.core.security import get_current_active_user
 from backend.app.models.user import User
 
 router = APIRouter(prefix="/api/predictions", tags=["predictions"])
+
+
+@router.get("/eta/sih/{train_number}", response_model=SIHETAResponse)
+async def get_sih_eta(
+    train_number: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    from backend.app.sih_eta.service import SIHETANotCovered, SIHETAService
+
+    service = SIHETAService(db)
+    try:
+        result = await service.predict_eta(train_number)
+        return SIHETAResponse(**result)
+    except SIHETANotCovered as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"SIH prediction failed: {str(e)}")
 
 
 @router.post("/eta", response_model=ETAResponse)

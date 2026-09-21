@@ -7,6 +7,7 @@ from backend.app.api.routes import (
     alerts,
     congestion,
     simulation,
+    copilot,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "alerts",
     "congestion",
     "simulation",
+    "copilot",
 ]

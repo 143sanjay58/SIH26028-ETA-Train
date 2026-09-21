@@ -14,6 +14,8 @@ interface WebSocketContextType {
   onTrainUpdate: (callback: (data: unknown) => void) => () => void;
   onAlert: (callback: (data: unknown) => void) => () => void;
   onCongestionUpdate: (callback: (data: unknown) => void) => () => void;
+  onCopilotReport: (callback: (data: unknown) => void) => () => void;
+  onEtaUpdate: (callback: (data: unknown) => void) => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
@@ -101,9 +103,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const onTrainUpdate = useCallback((callback: (data: unknown) => void) => subscribe('train_update', callback), [subscribe]);
   const onAlert = useCallback((callback: (data: unknown) => void) => subscribe('alert', callback), [subscribe]);
   const onCongestionUpdate = useCallback((callback: (data: unknown) => void) => subscribe('congestion_update', callback), [subscribe]);
+  const onCopilotReport = useCallback((callback: (data: unknown) => void) => subscribe('copilot_report', callback), [subscribe]);
+  const onEtaUpdate = useCallback((callback: (data: unknown) => void) => subscribe('eta_update', callback), [subscribe]);
 
   return (
-    <WebSocketContext.Provider value={{ isConnected, subscribeToTrain, unsubscribeFromTrain, onTrainUpdate, onAlert, onCongestionUpdate }}>
+    <WebSocketContext.Provider value={{ isConnected, subscribeToTrain, unsubscribeFromTrain, onTrainUpdate, onAlert, onCongestionUpdate, onCopilotReport, onEtaUpdate }}>
       {children}
     </WebSocketContext.Provider>
   );

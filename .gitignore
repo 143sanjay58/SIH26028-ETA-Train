@@ -22,6 +22,13 @@ build/
 *.log
 logs/
 
+# SIH26028 ETA core runtime data (large CSVs + LightGBM artifacts; local-only)
+backend/app/sih_eta/*.csv
+backend/app/sih_eta/*.joblib
+
+# Local database (regenerate via `python scripts/seed.py`)
+railway.db
+
 # IDE / OS
 .idea/
 .vscode/

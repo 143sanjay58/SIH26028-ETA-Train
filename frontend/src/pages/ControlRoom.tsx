@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { trainApi, alertApi, congestionApi, simulationApi, predictionApi } from '../services/api';
+import { trainApi, alertApi, congestionApi, simulationApi, predictionApi, copilotApi } from '../services/api';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import {
   Train as TrainIcon,
@@ -12,13 +12,16 @@ import {
   ArrowRight,
   Radio,
   RefreshCw,
+  RadioTower,
+  Check,
+  X,
 } from 'lucide-react';
-import { cn, formatTime, getDataSourceBadgeClass } from '../utils/helpers';
+import { cn, formatTime, formatDateTime, getDataSourceBadgeClass, getCoPilotPriorityBadge, getCoPilotReasonLabel, getCoPilotStatusBadge } from '../utils/helpers';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { MetricCard } from '../components/ui/MetricCard';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
-import type { Train, Alert, CongestionState, SimulationStatus, SimulationScenario, TrainLiveResponse } from '../types';
+import type { Train, Alert, CongestionState, SimulationStatus, SimulationScenario, TrainLiveResponse, CoPilotReport } from '../types';
 import toast from 'react-hot-toast';
 
 export default function ControlRoom() {
@@ -28,26 +31,29 @@ export default function ControlRoom() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [congestion, setCongestion] = useState<CongestionState[]>([]);
   const [simulation, setSimulation] = useState<SimulationStatus | null>(null);
+  const [copilotReports, setCopilotReports] = useState<CoPilotReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<'delay' | 'speed' | 'number'>('delay');
-  const { isConnected, onTrainUpdate, onAlert, onCongestionUpdate } = useWebSocket();
+  const { isConnected, onTrainUpdate, onAlert, onCongestionUpdate, onCopilotReport } = useWebSocket();
 
   useEffect(() => {
     let mounted = true;
     const fetchData = async () => {
       try {
-        const [trainsRes, alertsRes, congestionRes, simRes] = await Promise.all([
+        const [trainsRes, alertsRes, congestionRes, simRes, copilotRes] = await Promise.all([
           trainApi.list({ page_size: 100 }),
           alertApi.list({ active_only: true }),
           congestionApi.getNetwork(),
           simulationApi.getStatus(),
+          copilotApi.listReports({ limit: 50 }),
         ]);
         if (!mounted) return;
         setTrains(trainsRes.data.trains || []);
         setAlerts(alertsRes.data);
         setCongestion(congestionRes.data);
         setSimulation(simRes.data);
+        setCopilotReports(copilotRes.data || []);
       } catch { /* handled by error boundaries */ } finally {
         if (mounted) setIsLoading(false);
       }
@@ -76,15 +82,39 @@ export default function ControlRoom() {
       }
     });
     const unsubCongestion = onCongestionUpdate(() => fetchData());
+    const unsubCopilot = onCopilotReport((data) => {
+      if (!data || typeof data !== 'object' || !('id' in data)) return;
+      const report = data as CoPilotReport;
+      setCopilotReports((prev) =>
+        prev.find((r) => r.id === report.id)
+          ? prev.map((r) => (r.id === report.id ? report : r))
+          : [report, ...prev]
+      );
+    });
 
     return () => {
       mounted = false;
       unsubTrain();
       unsubAlert();
       unsubCongestion();
+      unsubCopilot();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onTrainUpdate, onAlert, onCongestionUpdate]);
+  }, [onTrainUpdate, onAlert, onCongestionUpdate, onCopilotReport]);
+
+  const handleReportAction = async (reportId: number, action: 'acknowledge' | 'close') => {
+    try {
+      const res = action === 'acknowledge' ? await copilotApi.acknowledge(reportId) : await copilotApi.close(reportId);
+      setCopilotReports((prev) =>
+        prev.find((r) => r.id === res.data.id)
+          ? prev.map((r) => (r.id === res.data.id ? res.data : r))
+          : [res.data, ...prev]
+      );
+      toast.success(`Report #${reportId} ${action === 'acknowledge' ? 'acknowledged' : 'closed'}`);
+    } catch {
+      toast.error(`Failed to ${action} report`);
+    }
+  };
 
   const handleSimulationControl = async (action: string, speed?: number, scenario?: SimulationScenario) => {
     try {
@@ -242,6 +272,63 @@ export default function ControlRoom() {
                     <p className="text-xs text-gray-600 mt-0.5">{a.message}</p>
                   </div>
                   <span className="text-[11px] text-gray-600 shrink-0">{formatTime(a.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+                <RadioTower className="h-4 w-4 text-accent" /> Co-Pilot Delay Reports
+              </h2>
+              {copilotReports.filter((r) => r.status === 'NEW').length > 0 && (
+                <span className="badge-critical">{copilotReports.filter((r) => r.status === 'NEW').length} NEW</span>
+              )}
+            </div>
+            <div className="divide-y divide-white/[0.03]">
+              {copilotReports.length === 0 ? (
+                <EmptyState icon={RadioTower} title="No co-pilot reports" message="New delay reports filed from the cab will appear here live." />
+              ) : copilotReports.slice(0, 8).map((r) => (
+                <div key={r.id} className="px-4 py-3 animate-slide-in">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-bold text-gray-100">#{r.id}</span>
+                    <button onClick={() => navigate(`/train/${r.train_number}`)} className="font-mono text-sm text-gray-200 hover:text-accent">
+                      {r.train_number}
+                    </button>
+                    <span className={cn(getCoPilotPriorityBadge(r.priority))}>{r.priority}</span>
+                    <span className={cn(getCoPilotStatusBadge(r.status))}>{r.status}</span>
+                    <span className="ml-auto text-[11px] text-gray-600">{formatDateTime(r.created_at)}</span>
+                  </div>
+                  <div className="mt-1.5 flex items-start gap-2">
+                    <span className="badge-info shrink-0">{getCoPilotReasonLabel(r.reason)}</span>
+                    <p className="text-sm text-gray-400">{r.message}</p>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-3 text-[11px] text-gray-600">
+                    <span>Reporter: {r.reporter_call_sign || `#${r.user_id}`}</span>
+                    {r.station_code && <span className="font-mono">{r.station_code}</span>}
+                    {r.current_delay_minutes > 0 && <span className="font-mono text-rail-amber">+{r.current_delay_minutes} min</span>}
+                    {r.status !== 'CLOSED' && (
+                      <span className="ml-auto flex items-center gap-1.5">
+                        {r.status === 'NEW' && (
+                          <button
+                            onClick={() => handleReportAction(r.id, 'acknowledge')}
+                            className="p-1 rounded-md bg-rail-green/10 text-rail-green border border-rail-green/20 hover:bg-rail-green/20"
+                            title="Acknowledge"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleReportAction(r.id, 'close')}
+                          className="p-1 rounded-md bg-rail-red/10 text-rail-red border border-rail-red/20 hover:bg-rail-red/20"
+                          title="Close"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

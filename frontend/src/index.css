@@ -112,6 +112,10 @@
     @apply badge bg-violet/15 text-violet-300 border border-violet/20;
   }
 
+  .badge-sih-eta {
+    @apply badge bg-accent/15 text-accent border border-accent/30;
+  }
+
   .badge-delayed {
     @apply badge bg-rail-amber/15 text-rail-amber border border-rail-amber/20;
   }

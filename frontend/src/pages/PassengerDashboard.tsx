@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { trainApi } from '../services/api';
-import { Search, Train as TrainIcon, Loader2, ArrowRight, Navigation, Info, Flame } from 'lucide-react';
-import { cn, getDataSourceBadgeClass, getTrainTypeLabel } from '../utils/helpers';
+import { trainApi, sihEtaApi } from '../services/api';
+import { Search, Train as TrainIcon, Loader2, ArrowRight, Navigation, Info, Flame, BrainCircuit, MapPin, RefreshCw } from 'lucide-react';
+import { cn, getDataSourceBadgeClass, getTrainTypeLabel, formatTime, getDelayColor } from '../utils/helpers';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
-import type { Train, TrainLiveResponse } from '../types';
+import type { Train, TrainLiveResponse, SIHETAResponse } from '../types';
+
+const SIH_DEMO_TRAIN = '12303';
 
 export default function PassengerDashboard() {
   const [trainNumber, setTrainNumber] = useState('');
@@ -13,7 +15,23 @@ export default function PassengerDashboard() {
   const [recent, setRecent] = useState<Train[]>([]);
   const [live, setLive] = useState<Record<number, TrainLiveResponse>>({});
   const [loadingTrains, setLoadingTrains] = useState(true);
+  const [sihDemo, setSihDemo] = useState<SIHETAResponse | null>(null);
+  const [sihLoading, setSihLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSih = async () => {
+      try {
+        const res = await sihEtaApi.getETA(SIH_DEMO_TRAIN);
+        if (mounted) setSihDemo(res.data);
+      } catch { /* core may be unavailable; card hides */ } finally {
+        if (mounted) setSihLoading(false);
+      }
+    };
+    loadSih();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -171,6 +189,75 @@ export default function PassengerDashboard() {
               );
             })}
           </div>
+        )}
+      </div>
+
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+            <BrainCircuit className="h-4 w-4 text-accent" />
+            SIH26028 ETA Demo — Train {SIH_DEMO_TRAIN}
+          </h2>
+          <button
+            onClick={async () => {
+              setSihLoading(true);
+              try {
+                const res = await sihEtaApi.getETA(SIH_DEMO_TRAIN);
+                setSihDemo(res.data);
+              } catch { /* no-op */ } finally {
+                setSihLoading(false);
+              }
+            }}
+            className="btn-secondary btn-sm"
+            title="Recompute SIH ETA"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', sihLoading && 'animate-spin')} /> Refresh
+          </button>
+        </div>
+
+        {sihDemo ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-1">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Predicted arrival</p>
+              <p className="font-mono text-3xl font-bold text-gray-50 tabular-nums mt-1">
+                {formatTime(new Date(sihDemo.predicted_arrival_time).toISOString())}
+              </p>
+              <p className="font-mono text-xs text-gray-500 mt-1">{sihDemo.destination_station_name || sihDemo.destination_station}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={cn('font-mono font-bold', getDelayColor(sihDemo.predicted_arrival_delay_minutes))}>
+                  {sihDemo.predicted_arrival_delay_minutes >= 0 ? '+' : ''}{sihDemo.predicted_arrival_delay_minutes.toFixed(0)} min
+                </span>
+                <span className={cn('text-[9px]', getDataSourceBadgeClass(sihDemo.data_source))}>{sihDemo.data_source}</span>
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2 flex items-center gap-1.5">
+                <MapPin className="h-3 w-3" /> Upcoming stations ({sihDemo.upcoming_station_count})
+              </p>
+              <div className="space-y-1.5">
+                {sihDemo.upcoming_stations.slice(0, 5).map((s) => (
+                  <div key={s.station_code} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-300 flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-gray-500">{s.station_code}</span>
+                      <span className="truncate">{s.station_name}</span>
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-gray-400">{formatTime(new Date(s.predicted_eta).toISOString())}</span>
+                      <span className={cn('font-mono', getDelayColor(s.predicted_arrival_delay_minutes))}>
+                        {s.predicted_arrival_delay_minutes >= 0 ? '+' : ''}{s.predicted_arrival_delay_minutes.toFixed(0)}m
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : sihLoading ? (
+          <LoadingSkeleton className="h-24" />
+        ) : (
+          <p className="text-sm text-gray-500">
+            The embedded LightGBM ETA core is not available right now. Open a train to see per-train predictions when the core responds.
+          </p>
         )}
       </div>
 

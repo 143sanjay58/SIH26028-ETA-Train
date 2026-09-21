@@ -16,6 +16,7 @@ export function SourceBadge({ source, className }: { source: string; className?:
     ESTIMATED: 'ESTIMATED',
     GPS_DERIVED: 'GPS-DERIVED',
     WEATHER_API: 'WEATHER API',
+    SIH_ETA_CORE: 'SIH ETA CORE',
   };
   return (
     <span className={cn(getDataSourceBadgeClass(source), className)} title={`Data source: ${source}`}>
