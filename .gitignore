@@ -24,7 +24,10 @@ build/
 *.log
 logs/
 
-# SIH26028 ETA core runtime data (large CSVs + LightGBM artifacts; local-only)
+# SIH26028 ETA core runtime data (large CSVs + LightGBM artifacts)
+# The four live runtime artifacts (ml_ready_segments_final.csv and the three
+# .joblib model files) are versioned via Git LFS and re-enabled below; the
+# guards here keep any other CSV/JOBLIB files out of the repo.
 backend/app/sih_eta/*.csv
 backend/app/sih_eta/*.joblib
 
@@ -38,6 +41,14 @@ indian-railways-predict-train-delay/
 
 # Generated data artifacts (large CSVs, intermediate/audit outputs)
 *.csv
+
+# --- Git LFS re-enables: the exact SIH26028 runtime artifacts tracked via LFS ---
+# Order matters: these negations come after the guards above and lift the ignore
+# ONLY for the four files versioned through Git LFS.
+!/backend/app/sih_eta/ml_ready_segments_final.csv
+!/backend/app/sih_eta/eta_remaining_time_lgbm.joblib
+!/backend/app/sih_eta/future_arrival_delay_lgbm.joblib
+!/backend/app/sih_eta/feature_encoders_and_schema.joblib
 
 # Stray dashboard package-lock at repo root of dashboard (no package.json there)
 dashboard/package-lock.json

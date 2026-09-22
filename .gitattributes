@@ -1,0 +1,2 @@
+backend/app/sih_eta/*.csv filter=lfs diff=lfs merge=lfs -text
+backend/app/sih_eta/*.joblib filter=lfs diff=lfs merge=lfs -text
