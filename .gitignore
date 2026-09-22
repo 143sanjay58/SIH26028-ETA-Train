@@ -5,6 +5,8 @@ __pycache__/
 .venv/
 venv/
 backend/venv/
+env/
+ENV/
 
 # JS / Node
 node_modules/
@@ -28,6 +30,25 @@ backend/app/sih_eta/*.joblib
 
 # Local database (regenerate via `python scripts/seed.py`)
 railway.db
+
+# Raw SIH reference data (also duplicated under indian-railways-predict-train-delay/)
+indian-railways-predict-train-delay/
+*.zip
+*.xlsx
+
+# Generated data artifacts (large CSVs, intermediate/audit outputs)
+*.csv
+
+# Stray dashboard package-lock at repo root of dashboard (no package.json there)
+dashboard/package-lock.json
+
+# Dev cruft (per AGENTS.md, not part of the deliverable)
+aaa
+bbb.py
+ccc.py
+ddd.py
+sample_test1.py
+sample_test2.py
 
 # IDE / OS
 .idea/

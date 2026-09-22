@@ -1,0 +1,25 @@
+{
+  "status": "OK",
+  "train_number": "12303",
+  "current_state": {
+    "station": "DKAE",
+    "route_position": 6,
+    "arrival_delay_minutes": 20,
+    "departure_delay_minutes": 22,
+    "current_time": "2024-09-26T08:26:00"
+  },
+  "eta": {
+    "first_upcoming_station": "UPCOMING_1",
+    "predicted_eta": "2024-09-26 08:41:03",
+    "remaining_minutes": 15.05,
+    "upcoming_station_count": 3
+  },
+  "operational_intelligence": {
+    "severity": "HIGH",
+    "trend": "STABLE",
+    "confidence_score": 100,
+    "confidence_level": "HIGH",
+    "passenger_message": "Current delay: 20.0 minutes. Predicted delay: 24.5 minutes."
+  },
+  "refresh_required": true
+}
