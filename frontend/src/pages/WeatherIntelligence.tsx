@@ -28,7 +28,7 @@ export default function WeatherIntelligence() {
     (async () => {
       try {
         const stationRes = await stationApi.list({ page_size: 100 });
-        const stationsList = (stationRes.data.items || []).slice(0, 12);
+        const stationsList = (stationRes.data.stations || []).slice(0, 12);
         if (!mounted) return;
         setStations(stationsList);
 

@@ -21,11 +21,11 @@ export default function RailwayMapPage() {
     try {
       const [trainRes, stationRes] = await Promise.all([
         trainApi.list({ page_size: 100 }),
-        stationApi.list({ page_size: 200 }).catch(() => null),
+        stationApi.list({ page_size: 100 }).catch(() => null),
       ]);
       const list = trainRes.data.trains || [];
       const raw = stationRes?.data as unknown;
-      const stList = Array.isArray(raw) ? raw : (raw as { items?: Station[] } | undefined)?.items ?? [];
+      const stList = Array.isArray(raw) ? raw : (raw as { stations?: Station[] } | undefined)?.stations ?? [];
       setStations(stList as Station[]);
 
       const map: Record<number, TrainLiveResponse> = {};

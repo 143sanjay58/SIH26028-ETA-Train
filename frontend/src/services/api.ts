@@ -17,6 +17,7 @@ import type {
   PaginatedResponse,
   ListResponse,
   HealthResponse,
+  TrainRouteResponse,
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -61,7 +62,7 @@ export const trainApi = {
   get: (id: number) => api.get<Train>(`/trains/${id}`),
   getByNumber: (number: string) => api.get<Train>(`/trains/number/${number}`),
   getLive: (id: number) => api.get<TrainLiveResponse>(`/trains/${id}/live`),
-  getRoute: (id: number) => api.get(`/trains/${id}/route`),
+  getRoute: (id: number) => api.get<TrainRouteResponse>(`/trains/${id}/route`),
   getPositions: (id: number, params?: { limit?: number; since?: string }) =>
     api.get<TrainPosition[]>(`/trains/${id}/positions`, { params }),
   getEvents: (id: number, params?: { limit?: number; since?: string }) =>
@@ -73,7 +74,7 @@ export const trainApi = {
 
 export const stationApi = {
   list: (params?: { page?: number; page_size?: number }) =>
-    api.get<PaginatedResponse<Station>>('/stations', { params }),
+    api.get<ListResponse<Station>>('/stations', { params }),
   get: (id: number) => api.get<Station>(`/stations/${id}`),
   getByCode: (code: string) => api.get<Station>(`/stations/code/${code}`),
   getReports: (stationId: number, params?: { train_id?: number; status?: string; page?: number; page_size?: number }) =>

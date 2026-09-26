@@ -65,22 +65,25 @@ class SIHETAService:
 
     async def predict_eta(self, train_number: str) -> Dict[str, Any]:
         train = await self.train_service.get_train_by_number(train_number)
-        if not train:
-            raise ValueError(f"Train {train_number} not found")
+        if train is not None:
+            return await self._predict_from_train(train)
 
+        return await self._predict_from_catalogue(train_number)
+
+    async def _predict_from_train(self, train: Train) -> Dict[str, Any]:
         position = await self.train_service.get_latest_position(train.id)
         if not position:
-            raise ValueError(f"No position data for train {train_number}")
+            raise ValueError(f"No position data for train {train.train_number}")
 
         station = await self._resolve_current_station(train, position)
 
         engine = _get_engine()
         position_on_route = self._map_station_to_route_position(
-            engine, train_number, station.code
+            engine, train.train_number, station.code
         )
 
         state = self._build_train_state(
-            train_number=train_number,
+            train_number=train.train_number,
             position=position,
             station_code=station.code,
             route_position=position_on_route,
@@ -88,7 +91,53 @@ class SIHETAService:
 
         results = engine.update_state(state)
 
-        return self._build_response(train, station, state, results, position)
+        return self._build_response(
+            train_number=train.train_number,
+            train_name=train.train_name,
+            station_name=station.name,
+            state=state,
+            results=results,
+            position_source=position.source,
+        )
+
+    async def _predict_from_catalogue(self, train_number: str) -> Dict[str, Any]:
+        from backend.app.services.sih_catalogue import CATALOGUE_SOURCE, get_catalogue
+
+        catalogue = get_catalogue()
+        route = catalogue.get_route(train_number)
+        if not route:
+            raise SIHETANotCovered(
+                f"Train {train_number} is not in the SIH catalogue"
+            )
+
+        engine = _get_engine()
+
+        first = route[0]
+        station_code = str(first["from_station"]).strip().upper()
+        station_name = first.get("from_station_name") or station_code
+        current_time = datetime.now(timezone.utc)
+
+        from train_state import TrainState
+
+        state = TrainState(
+            train_number=str(train_number).strip().lstrip("0") or "0",
+            current_station=station_code,
+            current_route_position=int(first["route_order"]),
+            current_arrival_delay=0.0,
+            current_departure_delay=0.0,
+            current_time=current_time,
+        )
+
+        results = engine.update_state(state)
+
+        return self._build_response(
+            train_number=str(train_number).strip(),
+            train_name=f"SIH CATALOGUE TRAIN {train_number}",
+            station_name=station_name,
+            state=state,
+            results=results,
+            position_source=CATALOGUE_SOURCE,
+        )
 
     # ------------------------------------------------------------------
     # State resolution
@@ -164,7 +213,15 @@ class SIHETAService:
     # Response building
     # ------------------------------------------------------------------
 
-    def _build_response(self, train, station, state, results, position) -> Dict[str, Any]:
+    def _build_response(
+        self,
+        train_number,
+        train_name,
+        station_name,
+        state,
+        results,
+        position_source,
+    ) -> Dict[str, Any]:
         from eta_confidence import ETAConfidence
         from delay_impact import DelayImpactAnalyzer
 
@@ -191,7 +248,7 @@ class SIHETAService:
             predicted_arrival_time = final["eta"]
         else:
             destination_station = str(state.current_station)
-            destination_station_name = station.name or state.current_station
+            destination_station_name = station_name or state.current_station
             final_remaining = 0.0
             final_delay = current_delay
             predicted_arrival_time = state.current_time if state.current_time else datetime.now(timezone.utc)
@@ -202,10 +259,10 @@ class SIHETAService:
         impact = DelayImpactAnalyzer().analyze(current_delay, final_delay, stations_ahead)
 
         return {
-            "train_number": train.train_number,
-            "train_name": train.train_name,
+            "train_number": train_number,
+            "train_name": train_name,
             "current_station": str(state.current_station),
-            "current_station_name": station.name,
+            "current_station_name": station_name,
             "current_route_position": int(state.current_route_position),
             "current_delay_minutes": round(current_delay, 2),
             "current_time": state.current_time.isoformat() if state.current_time else None,
@@ -224,6 +281,6 @@ class SIHETAService:
             "model_type": "SIH_ETA_CORE",
             "model_version": "STAGE13-LGBM",
             "data_source": DataSource.SIH_ETA_CORE if hasattr(DataSource, "SIH_ETA_CORE") else "SIH_ETA_CORE",
-            "position_source": position.source,
+            "position_source": position_source,
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }

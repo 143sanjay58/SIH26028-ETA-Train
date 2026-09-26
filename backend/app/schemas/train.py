@@ -45,6 +45,18 @@ class TrainListResponse(BaseModel):
     page_size: int
 
 
+class CatalogueTrainResponse(BaseModel):
+    train_number: str
+    train_name: Optional[str] = None
+    origin_station: str
+    origin_station_name: Optional[str] = None
+    destination_station: str
+    destination_station_name: Optional[str] = None
+    route_segments: int
+    has_route: bool = True
+    source: str = "SIH_CATALOGUE"
+
+
 class TrainPositionBase(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)

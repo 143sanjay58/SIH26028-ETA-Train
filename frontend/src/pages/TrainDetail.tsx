@@ -82,7 +82,7 @@ export default function TrainDetail() {
           predictionApi.getETA(trainNumber, { include_explanations: true, include_uncertainty: true }).catch(() => null),
           weatherApi.getRouteWeather(trainId, 5).catch(() => null),
           alertApi.list({ train_id: trainId, active_only: true }).catch(() => null),
-          stationApi.list({ page_size: 200 }).catch(() => null),
+          stationApi.list({ page_size: 100 }).catch(() => null),
           positions,
         ]);
 
@@ -90,12 +90,30 @@ export default function TrainDetail() {
         if (liveRes?.data) setLiveData(liveRes.data);
         if (etaRes?.data) setEtaData(etaRes.data);
         if (routeRes?.data) {
-          const items = Array.isArray(routeRes.data) ? routeRes.data : (routeRes.data as { items?: TrainSchedule[] }).items || [];
-          setRoute(items);
+          const routeData = routeRes.data;
+          const seen = new Set<number>();
+          const ordered: TrainSchedule[] = [];
+          const pushUnique = (item: TrainSchedule) => {
+            if (item && !seen.has(item.station_id)) {
+              seen.add(item.station_id);
+              ordered.push(item);
+            }
+          };
+          (routeData.passed_stations || []).forEach(pushUnique);
+          (routeData.upcoming_stations || []).forEach(pushUnique);
+          if (routeData.origin && !seen.has(routeData.origin.station_id)) {
+            seen.add(routeData.origin.station_id);
+            ordered.unshift(routeData.origin);
+          }
+          if (routeData.destination && !seen.has(routeData.destination.station_id)) {
+            seen.add(routeData.destination.station_id);
+            ordered.push(routeData.destination);
+          }
+          setRoute(ordered);
         }
         if (weatherRes?.data) setWeather(Array.isArray(weatherRes.data) ? weatherRes.data[0] || null : weatherRes.data);
         if (alertsRes?.data) setAlerts(alertsRes.data);
-        if (stationRes?.data) setStations(Array.isArray(stationRes.data) ? stationRes.data : stationRes.data.items || []);
+        if (stationRes?.data) setStations(Array.isArray(stationRes.data) ? stationRes.data : stationRes.data.stations || []);
         if (pos && pos[0] && !liveRes?.data) {
           setLiveData({ train: tr.data, current_position: pos[0], current_speed_kmh: pos[0].speed_kmh, average_speed_kmh: pos[0].speed_kmh, distance_travelled_km: pos[0].distance_travelled_km, distance_remaining_km: 0, current_delay_minutes: pos[0].delay_minutes, delay_trend: 'STABLE', data_source: pos[0].source } as TrainLiveResponse);
         }

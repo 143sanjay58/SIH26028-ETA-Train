@@ -256,6 +256,15 @@ export interface CongestionState {
   measured_at: string;
 }
 
+export interface TrainRouteResponse {
+  train_id: number;
+  train_number: string;
+  origin: TrainSchedule;
+  destination: TrainSchedule;
+  upcoming_stations: TrainSchedule[];
+  passed_stations: TrainSchedule[];
+}
+
 export type CongestionLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface SimulationStatus {

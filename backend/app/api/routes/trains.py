@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 
 from backend.app.database.session import get_db
@@ -16,6 +16,7 @@ from backend.app.schemas.train import (
     TrainEventResponse,
     TrainLiveResponse,
     TrainRouteResponse,
+    CatalogueTrainResponse,
 )
 from backend.app.core.security import get_current_active_user, require_roles
 from backend.app.models.user import User, UserRole
@@ -67,7 +68,7 @@ async def get_train(
     return TrainResponse.model_validate(train)
 
 
-@router.get("/number/{train_number}", response_model=TrainResponse)
+@router.get("/number/{train_number}", response_model=Union[TrainResponse, CatalogueTrainResponse])
 async def get_train_by_number(
     train_number: str,
     db: AsyncSession = Depends(get_db),
@@ -75,9 +76,17 @@ async def get_train_by_number(
 ):
     service = TrainService(db)
     train = await service.get_train_by_number(train_number)
-    if not train:
-        raise HTTPException(status_code=404, detail="Train not found")
-    return TrainResponse.model_validate(train)
+    if train:
+        return TrainResponse.model_validate(train)
+
+    from backend.app.services.sih_catalogue import get_catalogue
+
+    catalogue = get_catalogue()
+    catalogue_train = catalogue.get_train(train_number)
+    if catalogue_train:
+        return CatalogueTrainResponse(**catalogue_train)
+
+    raise HTTPException(status_code=404, detail="Train not found")
 
 
 @router.patch("/{train_id}", response_model=TrainResponse)
@@ -145,9 +154,34 @@ async def get_train_live(
     distance_remaining = train.total_distance_km - distance_travelled
     current_delay = position.delay_minutes if position else 0
 
+    if position is not None:
+        position_payload = {
+            "id": position.id,
+            "train_id": position.train_id,
+            "latitude": position.latitude,
+            "longitude": position.longitude,
+            "speed_kmh": position.speed_kmh,
+            "heading": position.heading,
+            "current_station_id": position.current_station_id,
+            "next_station_id": position.next_station_id,
+            "distance_to_next_km": (
+                max(0.0, position.distance_to_next_km)
+                if position.distance_to_next_km is not None
+                else None
+            ),
+            "distance_travelled_km": position.distance_travelled_km,
+            "delay_minutes": position.delay_minutes,
+            "timestamp": position.timestamp,
+            "source": position.source,
+            "is_valid": position.is_valid,
+        }
+        current_position = TrainPositionResponse.model_validate(position_payload)
+    else:
+        current_position = None
+
     return TrainLiveResponse(
         train=TrainResponse.model_validate(train),
-        current_position=TrainPositionResponse.model_validate(position) if position else None,
+        current_position=current_position,
         next_station=next_station,
         current_speed_kmh=current_speed,
         average_speed_kmh=avg_speed,
