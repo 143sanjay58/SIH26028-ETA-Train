@@ -2,7 +2,7 @@ import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip } from 'react-
 import { Train as TrainIcon } from 'lucide-react';
 import type { Station, TrainPosition } from '../../types';
 
-export function RailwayMap({ stations, position }: { stations: Station[]; position?: TrainPosition }) {
+export function RailwayMap({ stations, position, route }: { stations: Station[]; position?: TrainPosition; route?: [number, number][] }) {
   const points = stations.filter((s) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude)).map((s) => ({
     lat: s.latitude,
     lng: s.longitude,
@@ -11,19 +11,19 @@ export function RailwayMap({ stations, position }: { stations: Station[]; positi
   }));
 
   const hasTrain = position && Number.isFinite(position.latitude) && Number.isFinite(position.longitude);
-  const routePoints = points.map((p) => [p.lat, p.lng] as [number, number]);
+  const routePoints = route && route.length > 0 ? route : points.map((p) => [p.lat, p.lng] as [number, number]);
 
   return (
     <div className="relative h-[320px] sm:h-[400px] w-full rounded-xl overflow-hidden border border-white/[0.06]">
       <MapContainer center={[13.0, 78.5]} zoom={7} scrollWheelZoom={false} className="h-full w-full">
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {routePoints.length > 1 && (
           <Polyline positions={routePoints} pathOptions={{ color: 'rgba(0,212,255,0.45)', weight: 2 }} />
         )}
-        {points.map((p, i) => (
+        {!route && points.map((p, i) => (
           <CircleMarker
             key={i}
             center={[p.lat, p.lng]}

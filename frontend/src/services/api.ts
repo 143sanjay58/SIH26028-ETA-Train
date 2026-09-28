@@ -18,6 +18,8 @@ import type {
   ListResponse,
   HealthResponse,
   TrainRouteResponse,
+  CatalogueTrain,
+  NetworkRoutesResponse,
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -60,7 +62,8 @@ export const trainApi = {
   list: (params?: { page?: number; page_size?: number; status?: string; train_type?: string }) =>
     api.get<ListResponse<Train>>('/trains', { params }),
   get: (id: number) => api.get<Train>(`/trains/${id}`),
-  getByNumber: (number: string) => api.get<Train>(`/trains/number/${number}`),
+  search: (q: string, limit?: number) => api.get<CatalogueTrain[]>('/trains/search', { params: { q, limit } }),
+  getByNumber: (number: string) => api.get<Train | CatalogueTrain>(`/trains/number/${number}`),
   getLive: (id: number) => api.get<TrainLiveResponse>(`/trains/${id}/live`),
   getRoute: (id: number) => api.get<TrainRouteResponse>(`/trains/${id}/route`),
   getPositions: (id: number, params?: { limit?: number; since?: string }) =>
@@ -139,6 +142,10 @@ export const simulationApi = {
 
 export const healthApi = {
   check: () => api.get<HealthResponse>('/health'),
+};
+
+export const networkApi = {
+  routes: () => api.get<NetworkRoutesResponse>('/network/routes'),
 };
 
 export default api;

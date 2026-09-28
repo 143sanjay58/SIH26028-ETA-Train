@@ -155,6 +155,14 @@ export function getDataSourceBadgeClass(source: string): string {
   }
 }
 
+export const roleHome: Record<string, string> = {
+  PASSENGER: '/',
+  STATION_STAFF: '/co-pilot',
+  SUPERVISOR: '/control-room',
+  OPERATOR: '/control-room',
+  ADMIN: '/control-room',
+};
+
 export function roleLabel(role: string): string {
   const labels: Record<string, string> = {
     PASSENGER: 'Passenger',

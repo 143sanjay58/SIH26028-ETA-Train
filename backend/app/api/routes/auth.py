@@ -38,7 +38,7 @@ async def register(
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_password,
-        role=user_data.role,
+        role=UserRole.PASSENGER,
         station_id=user_data.station_id,
     )
     db.add(user)

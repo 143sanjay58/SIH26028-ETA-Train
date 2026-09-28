@@ -32,6 +32,18 @@ export interface Train {
   destination_station?: Station;
 }
 
+export interface CatalogueTrain {
+  train_number: string;
+  train_name?: string;
+  origin_station: string;
+  origin_station_name?: string;
+  destination_station: string;
+  destination_station_name?: string;
+  route_segments: number;
+  has_route: boolean;
+  source: string;
+}
+
 export type TrainType = 'EXPRESS' | 'SUPERFAST' | 'MAIL' | 'PASSENGER' | 'SUBURBAN' | 'FREIGHT' | 'RAJDHANI' | 'SHATABDI' | 'DURONTO' | 'VANDE_BHARAT';
 
 export type TrainStatus = 'SCHEDULED' | 'RUNNING' | 'DELAYED' | 'ARRIVED' | 'CANCELLED' | 'DIVERTED' | 'TERMINATED';
@@ -263,6 +275,18 @@ export interface TrainRouteResponse {
   destination: TrainSchedule;
   upcoming_stations: TrainSchedule[];
   passed_stations: TrainSchedule[];
+}
+
+export interface NetworkStation {
+  code: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface NetworkRoutesResponse {
+  stations: NetworkStation[];
+  edges: [string, string][];
 }
 
 export type CongestionLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';

@@ -48,8 +48,49 @@ def _get_engine():
 
                 logger.info("Loading SIH26028 ETA engine (route data + LightGBM models)...")
                 _engine = DynamicETAEngine()
+                _install_route_cache(_engine)
                 logger.info("SIH26028 ETA engine ready.")
     return _engine
+
+
+def _install_route_cache(engine):
+    """Install a process-local, per-train route cache on the SIH ETA engine.
+
+    Why it exists
+    -------------
+    The SIH ETA core rebuilds a train's route from the full 372,911-row
+    timetable for EVERY predicted station, twice: once through
+    DynamicETAEngine._get_train_route() (used by ``_scheduled_remaining`` and
+    station-to-route mapping) and once through FeatureBuilder.get_train_route()
+    (used by FeatureBuilder.build()). Those redundant full-table scans dominate
+    prediction latency (measured ~88% of the per-station feature-building cost).
+
+    The timetable is frozen/validated data, so once a route is built it never
+    needs rebuilding. This cache keeps a single sorted route DataFrame per
+    normalized train number and serves both route consumers from it.
+
+    What it does NOT change
+    -----------------------
+    - No ETA/model math is altered: cached routes hold the same rows, ordering
+      and timetable values the core would have produced, so the 21 features and
+      every downstream ETA/delay/confidence/impact value are unchanged.
+    - Both consumers only read (mask/filter/slice) the returned route; they
+      never mutate it, so sharing one cached object is safe.
+    - Process-local memory only: nothing is written to disk, no cache
+      invalidation (frozen data), no external dependencies.
+    """
+    route_cache = {}
+    engine_get_train_route = engine._get_train_route
+
+    def cached_get_train_route(train_number):
+        # Same normalization the SIH core uses: strip leading zeros.
+        key = str(train_number).strip().lstrip("0") or "0"
+        if key not in route_cache:
+            route_cache[key] = engine_get_train_route(train_number)
+        return route_cache[key]
+
+    engine._get_train_route = cached_get_train_route
+    engine.predictor.feature_builder.get_train_route = cached_get_train_route
 
 
 class SIHETAService:

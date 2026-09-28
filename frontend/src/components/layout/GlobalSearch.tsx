@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Train as TrainIcon, Loader2, Navigation, Clock, MapPin } from 'lucide-react';
 import { trainApi } from '../../services/api';
+import type { CatalogueTrain } from '../../types';
 
 interface SearchResult {
   train_number: string;
@@ -26,11 +27,12 @@ export function GlobalSearch() {
     try {
       const res = await trainApi.getByNumber(query.trim().toUpperCase());
       const t = res.data;
+      const catalogue = 'source' in t && (t as CatalogueTrain).source === 'SIH_CATALOGUE' ? (t as CatalogueTrain) : null;
       setResults([{
         train_number: t.train_number,
-        train_name: t.train_name,
-        origin: t.origin_station?.name,
-        destination: t.destination_station?.name,
+        train_name: t.train_name ?? t.train_number,
+        origin: catalogue ? (catalogue.origin_station_name || catalogue.origin_station) : ('origin_station_id' in t ? t.origin_station?.name : undefined),
+        destination: catalogue ? (catalogue.destination_station_name || catalogue.destination_station) : ('origin_station_id' in t ? t.destination_station?.name : undefined),
       }]);
       setOpen(true);
     } catch {

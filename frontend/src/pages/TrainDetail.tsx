@@ -24,7 +24,7 @@ import { DelayExplanation } from '../components/train/DelayExplanation';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import type { TrainLiveResponse, ETAResponse, WeatherResponse, Alert, Train, TrainSchedule, Station, SIHETAResponse } from '../types';
+import type { TrainLiveResponse, ETAResponse, WeatherResponse, Alert, Train, TrainSchedule, Station, SIHETAResponse, CatalogueTrain } from '../types';
 
 function useStateExport(trainNumber: string) {
   useEffect(() => {
@@ -44,6 +44,7 @@ export default function TrainDetail() {
   const { subscribeToTrain, unsubscribeFromTrain, onTrainUpdate, onEtaUpdate, isConnected } = useWebSocket();
 
   const [train, setTrain] = useState<Train | null>(null);
+  const [catalogue, setCatalogue] = useState<CatalogueTrain | null>(null);
   const [liveData, setLiveData] = useState<TrainLiveResponse | null>(null);
   const [etaData, setEtaData] = useState<ETAResponse | null>(null);
   const [sihEta, setSihEta] = useState<SIHETAResponse | null>(null);
@@ -67,9 +68,22 @@ export default function TrainDetail() {
     const fetchAll = async () => {
       setIsLoading(true);
       setError(null);
+      setCatalogue(null);
       try {
         const tr = await trainApi.getByNumber(trainNumber);
         if (cancelled) return;
+        if (!('id' in tr.data)) {
+          setCatalogue(tr.data as CatalogueTrain);
+          setSihEtaLoading(true);
+          void sihEtaApi.getETA(trainNumber).then((res) => {
+            if (!cancelled) setSihEta(res.data);
+          }).catch(() => {
+            if (!cancelled) setSihEta(null);
+          }).finally(() => {
+            if (!cancelled) setSihEtaLoading(false);
+          });
+          return;
+        }
         trainId = tr.data.id;
         setTrain(tr.data);
         subscribeToTrain(trainId);
@@ -177,6 +191,59 @@ export default function TrainDetail() {
           <LoadingSkeleton className="h-56" />
         </div>
         <LoadingSkeleton className="h-96" />
+      </div>
+    );
+  }
+
+  if (catalogue) {
+    const origin = catalogue.origin_station_name || catalogue.origin_station;
+    const destination = catalogue.destination_station_name || catalogue.destination_station;
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="p-2 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-white/[0.06] transition-colors" aria-label="Back">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-mono text-2xl font-bold text-gray-50">{catalogue.train_number}</h1>
+              <span className="text-gray-300 font-medium text-lg">{catalogue.train_name || 'SIH Catalogue train'}</span>
+              <span className="badge-sih-eta">SIH CATALOGUE</span>
+            </div>
+            <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
+              {origin} <ArrowLeft className="h-3 w-3 rotate-180 text-gray-700" /> {destination}
+            </p>
+          </div>
+          <button onClick={() => navigate(0)} className="btn-secondary btn-sm" title="Refresh data">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </button>
+        </div>
+
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Catalogue info</span>
+          </div>
+          <dl className="space-y-2.5 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Source</dt>
+              <dd className="font-medium text-gray-200">SIH Train Catalogue</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Origin</dt>
+              <dd className="font-mono font-medium text-gray-200">{origin}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Destination</dt>
+              <dd className="font-mono font-medium text-gray-200">{destination}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Route segments</dt>
+              <dd className="font-mono font-medium text-gray-200">{catalogue.route_segments}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <SIHETACard eta={sihEta} loading={sihEtaLoading} />
       </div>
     );
   }

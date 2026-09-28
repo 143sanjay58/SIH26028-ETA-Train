@@ -37,18 +37,29 @@ const passengerItems: NavItem[] = [
   { path: '/eta', label: 'AI ETA', icon: Brain },
 ];
 
-const railwayItems: NavItem[] = [
-  { path: '/delay-intel', label: 'Delay Intelligence', icon: Gauge, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
+const copilotItems: NavItem[] = [
+  { path: '/co-pilot', label: 'Train Co-Pilot', icon: RadioTower },
+  { path: '/trains', label: 'Live Trains', icon: Train },
+  { path: '/eta', label: 'AI ETA', icon: Brain },
+  { path: '/delay-intel', label: 'Delay Intelligence', icon: Gauge },
+  { path: '/station-master', label: 'Station Reports', icon: Building2 },
+];
+
+const controlRoomItems: NavItem[] = [
+  { path: '/control-room', label: 'Control Room', icon: Radio },
+  { path: '/trains', label: 'Live Trains', icon: Train },
+  { path: '/map', label: 'Railway Map', icon: Navigation },
+  { path: '/eta', label: 'AI ETA', icon: Brain },
+  { path: '/delay-intel', label: 'Delay Intelligence', icon: Gauge },
   { path: '/weather', label: 'Weather', icon: CloudRain },
-  { path: '/alerts', label: 'Alerts', icon: Bell, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
-  { path: '/simulation', label: 'Simulation Lab', icon: FlaskConical, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
-  { path: '/station-master', label: 'Station Operations', icon: Building2, roles: ['STATION_STAFF', 'SUPERVISOR', 'OPERATOR', 'ADMIN'] },
-  { path: '/co-pilot', label: 'Train Co-Pilot', icon: RadioTower, roles: ['STATION_STAFF'] },
-  { path: '/control-room', label: 'Control Room', icon: Radio, roles: ['SUPERVISOR', 'OPERATOR', 'ADMIN'] },
+  { path: '/alerts', label: 'Alerts', icon: Bell },
+  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/simulation', label: 'Simulation Lab', icon: FlaskConical, roles: ['OPERATOR', 'ADMIN'] },
+  { path: '/station-master', label: 'Station Reports', icon: Building2 },
 ];
 
 const bottomItems: NavItem[] = [
+  { path: '/settings', label: 'Profile', icon: User },
   { path: '/system-health', label: 'System Status', icon: ActivityIcon },
 ];
 
@@ -78,6 +89,11 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolea
   const role = user?.role || '';
 
   const canSee = (item: NavItem) => !item.roles || item.roles.includes(role);
+
+  const portal =
+    role === 'STATION_STAFF' ? { label: 'Train Co-Pilot', items: copilotItems } :
+    role === 'SUPERVISOR' || role === 'OPERATOR' || role === 'ADMIN' ? { label: 'Control Room', items: controlRoomItems } :
+    { label: 'Passenger', items: passengerItems };
 
   const isActive = (item: NavItem) => (item.match ? item.match(location.pathname) : location.pathname.startsWith(item.path));
 
@@ -121,14 +137,9 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolea
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {!collapsed && (
-          <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Passenger Mode</p>
+          <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-600">{portal.label}</p>
         )}
-        {!collapsed && passengerItems.map(renderItem)}
-
-        {!collapsed && (
-          <p className="px-3 pt-4 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Railway Mode</p>
-        )}
-        {!collapsed && railwayItems.map(renderItem)}
+        {portal.items.map(renderItem)}
 
         <div className={cn(collapsed ? 'border-t border-white/[0.06] mt-2 pt-2' : 'hidden')} />
         {!collapsed && (

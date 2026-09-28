@@ -3,7 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Train, Loader2, ShieldCheck, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { cn } from '../utils/helpers';
+import { cn, roleHome } from '../utils/helpers';
+
+const DEMO_ACCOUNTS = [
+  { label: 'Passenger', username: 'passenger', password: 'passenger123', portal: 'Passenger' },
+  { label: 'Train Co-Pilot', username: 'copilot', password: 'copilot123', portal: 'Co-Pilot' },
+  { label: 'Supervisor', username: 'supervisor', password: 'supervisor123', portal: 'Control Room' },
+  { label: 'Operator', username: 'operator', password: 'operator123', portal: 'Control Room' },
+  { label: 'Admin', username: 'admin', password: 'admin123', portal: 'Control Room' },
+];
 
 function RailwayNetworkVisual() {
   const nodes = [
@@ -80,9 +88,10 @@ export default function Login() {
     setIsLoading(true);
     setError(null);
     try {
-      await login(username, password);
+      const resolvedUser = await login(username, password);
+      const dest = (resolvedUser && roleHome[resolvedUser.role]) || '/';
       toast.success('Welcome back');
-      navigate('/');
+      navigate(dest, { replace: true });
     } catch {
       setError('Invalid username or password. Please try again.');
     } finally {
@@ -182,9 +191,24 @@ export default function Login() {
             </button>
           </form>
 
-          <div className={cn('mt-6 rounded-lg border border-dashed border-white/10 px-4 py-3 text-xs text-gray-500 space-y-0.5')}>
-            <p className="font-medium text-gray-400">Demo environment — sample credentials</p>
-            <p className="font-mono text-gray-500"><span className="text-gray-300">passenger</span> / <span className="text-gray-300">passenger123</span> · <span className="text-gray-300">operator</span> / <span className="text-gray-300">operator123</span></p>
+          <div className={cn('mt-6 rounded-lg border border-dashed border-white/10 px-4 py-3 text-xs text-gray-500 space-y-2')}>
+            <p className="font-medium text-gray-400">Demo environment — click an account to sign in</p>
+            <div className="space-y-1">
+              {DEMO_ACCOUNTS.map((acc) => (
+                <button
+                  key={acc.username}
+                  type="button"
+                  onClick={() => { setUsername(acc.username); setPassword(acc.password); }}
+                  className="w-full flex items-center justify-between font-mono text-gray-500 hover:bg-white/[0.06] hover:text-gray-300 rounded-md px-2 py-1 text-left transition-colors cursor-pointer"
+                  title={`Sign in as ${acc.label}`}
+                >
+                  <span>
+                    <span className="text-gray-300">{acc.username}</span> / <span className="text-gray-300">{acc.password}</span>
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-gray-600">{acc.portal}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

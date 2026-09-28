@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { trainApi, stationApi } from '../services/api';
+import { trainApi, stationApi, networkApi } from '../services/api';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip, Popup } from 'react-leaflet';
 import { Navigation, Radar, RefreshCw } from 'lucide-react';
 import { cn } from '../utils/helpers';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
-import type { Station, TrainLiveResponse } from '../types';
+import type { Station, TrainLiveResponse, NetworkRoutesResponse } from '../types';
+
+let networkPromise: Promise<NetworkRoutesResponse | null> | null = null;
 
 export default function RailwayMapPage() {
   const navigate = useNavigate();
@@ -16,6 +18,8 @@ export default function RailwayMapPage() {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [focusId, setFocusId] = useState<number | null>(null);
+  const [network, setNetwork] = useState<NetworkRoutesResponse | null>(null);
+  const [networkError, setNetworkError] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -46,16 +50,51 @@ export default function RailwayMapPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!networkPromise) {
+      networkPromise = networkApi
+        .routes()
+        .then((res) => res.data)
+        .catch(() => null);
+    }
+    networkPromise.then((data) => {
+      if (cancelled) return;
+      if (data) setNetwork(data);
+      else setNetworkError(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const positioned = useMemo(() => Object.values(stops).filter((s) => s.current_position), [stops]);
   const stationPoints = stations.filter((s) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude));
-  const routePoints = stationPoints.map((s) => [s.latitude, s.longitude] as [number, number]);
   const focused = stops[focusId ?? -1];
+
+  const networkLines = useMemo(() => {
+    if (!network) return [];
+    const byCode = new Map<string, NetworkRoutesResponse['stations'][number]>();
+    for (const s of network.stations) byCode.set(s.code.toUpperCase(), s);
+    const lines: [number, number][][] = [];
+    const seen = new Set<string>();
+    for (const edge of network.edges) {
+      const key = `${edge[0].toUpperCase()}|${edge[1].toUpperCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const from = byCode.get(edge[0].toUpperCase());
+      const to = byCode.get(edge[1].toUpperCase());
+      if (!from || !to) continue;
+      if (!(Number.isFinite(from.latitude) && Number.isFinite(from.longitude))) continue;
+      if (!(Number.isFinite(to.latitude) && Number.isFinite(to.longitude))) continue;
+      lines.push([[from.latitude, from.longitude], [to.latitude, to.longitude]]);
+    }
+    return lines;
+  }, [network]);
 
   return (
     <div className="space-y-5">
       <SectionHeader
         title="Railway Map"
-        subtitle="Network view with live train positions"
+        subtitle="Railway network across all SIH catalogue train routes"
         right={
           <span className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-full border',
             isConnected ? 'border-rail-green/30 bg-rail-green/10' : 'border-rail-red/30 bg-rail-red/10')}>
@@ -67,62 +106,73 @@ export default function RailwayMapPage() {
         }
       />
 
-      {loading ? (
-        <LoadingSkeleton className="h-[480px]" />
-      ) : (
-        <div className="relative h-[520px] rounded-xl overflow-hidden border border-white/[0.06]">
-          <MapContainer center={[13.5, 78.5]} zoom={7} scrollWheelZoom={false} className="h-full w-full">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
-            {routePoints.length > 1 && (
-              <Polyline positions={routePoints} pathOptions={{ color: 'rgba(0,212,255,0.25)', weight: 1.5 }} />
-            )}
-            {stationPoints.map((s) => (
-              <CircleMarker
-                key={s.id}
-                center={[s.latitude, s.longitude]}
-                radius={4}
-                pathOptions={{ color: '#00d4ff', fillColor: 'rgba(0,212,255,0.4)', fillOpacity: 0.5, weight: 1 }}
-              >
-                <Tooltip direction="top" opacity={1}><span>{s.name} ({s.code})</span></Tooltip>
-              </CircleMarker>
-            ))}
-            {positioned.map((l) => {
-              const p = l.current_position!;
-              const delay = l.current_delay_minutes;
-              return (
+      <div className="relative h-[520px] rounded-xl overflow-hidden border border-white/[0.06]">
+        {loading ? (
+          <LoadingSkeleton className="h-full" />
+        ) : (
+          <>
+            <MapContainer center={[13.5, 78.5]} zoom={7} scrollWheelZoom={false} className="h-full w-full">
+              <TileLayer
+                attribution='&copy; OpenStreetMap contributors'
+                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {networkLines.length > 0 && (
+                <Polyline
+                  positions={networkLines}
+                  pathOptions={{ color: 'rgba(0,148,255,0.35)', weight: 1.5 }}
+                />
+              )}
+              {stationPoints.map((s) => (
                 <CircleMarker
-                  key={l.train.id}
-                  center={[p.latitude, p.longitude]}
-                  radius={delay > 30 ? 12 : delay > 0 ? 9 : 8}
-                  pathOptions={{
-                    color: delay > 30 ? '#ef4444' : delay > 0 ? '#f59e0b' : '#10b981',
-                    fillColor: delay > 30 ? '#ef4444' : delay > 0 ? '#f59e0b' : '#10b981',
-                    fillOpacity: 0.85, weight: 2,
-                  }}
-                  eventHandlers={{ click: () => setFocusId(l.train.id) }}
+                  key={s.id}
+                  center={[s.latitude, s.longitude]}
+                  radius={4}
+                  pathOptions={{ color: '#00d4ff', fillColor: 'rgba(0,212,255,0.4)', fillOpacity: 0.5, weight: 1 }}
                 >
-                  <Popup>
-                    <div className="min-w-[140px]">
-                      <p className="font-mono text-xs font-bold">{l.train.train_number} — {l.train.train_name}</p>
-                      <p className="text-xs mt-1">{delay >= 0 ? '+' : ''}{delay.toFixed(0)} min · {l.current_speed_kmh.toFixed(0)} km/h</p>
-                      <button className="text-xs text-accent mt-1 underline" onClick={() => navigate(`/train/${l.train.train_number}`)}>Open train →</button>
-                    </div>
-                  </Popup>
+                  <Tooltip direction="top" opacity={1}><span>{s.name} ({s.code})</span></Tooltip>
                 </CircleMarker>
-              );
-            })}
-          </MapContainer>
+              ))}
+              {positioned.map((l) => {
+                const p = l.current_position!;
+                const delay = l.current_delay_minutes;
+                return (
+                  <CircleMarker
+                    key={l.train.id}
+                    center={[p.latitude, p.longitude]}
+                    radius={delay > 30 ? 12 : delay > 0 ? 9 : 8}
+                    pathOptions={{
+                      color: delay > 30 ? '#ef4444' : delay > 0 ? '#f59e0b' : '#10b981',
+                      fillColor: delay > 30 ? '#ef4444' : delay > 0 ? '#f59e0b' : '#10b981',
+                      fillOpacity: 0.85, weight: 2,
+                    }}
+                    eventHandlers={{ click: () => setFocusId(l.train.id) }}
+                  >
+                    <Popup>
+                      <div className="min-w-[140px]">
+                        <p className="font-mono text-xs font-bold">{l.train.train_number} — {l.train.train_name}</p>
+                        <p className="text-xs mt-1">{delay >= 0 ? '+' : ''}{delay.toFixed(0)} min · {l.current_speed_kmh.toFixed(0)} km/h</p>
+                        <button className="text-xs text-accent mt-1 underline" onClick={() => navigate(`/train/${l.train.train_number}`)}>Open train →</button>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </MapContainer>
 
-          <div className="absolute top-3 left-3 card px-3 py-2 flex items-center gap-3 bg-surface-100/90 backdrop-blur-sm">
-            <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2 h-2 rounded-full bg-rail-green" /> On time</span>
-            <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2 h-2 rounded-full bg-rail-amber" /> Delayed</span>
-            <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2 h-2 rounded-full bg-rail-red" /> Critical</span>
-          </div>
-        </div>
-      )}
+            {networkError && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 card px-4 py-2 bg-surface-100/95 backdrop-blur-sm">
+                <span className="text-xs text-gray-400">Railway network route data is currently unavailable.</span>
+              </div>
+            )}
+
+            <div className="absolute top-3 left-3 card px-3 py-2 flex items-center gap-3 bg-surface-100/90 backdrop-blur-sm">
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2 h-2 rounded-full bg-rail-green" /> On time</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2 h-2 rounded-full bg-rail-amber" /> Delayed</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2 h-2 rounded-full bg-rail-red" /> Critical</span>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="card p-4 lg:col-span-2">

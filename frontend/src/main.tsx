@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { WebSocketProvider } from './contexts/WebSocketContext'
+import 'leaflet/dist/leaflet.css';
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

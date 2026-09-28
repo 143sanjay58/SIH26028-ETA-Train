@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { stationApi, trainApi, alertApi } from '../services/api';
+import { loadTrainRoute } from '../utils/trainRoute';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import {
   Plus,
@@ -14,8 +15,10 @@ import { SectionHeader } from '../components/ui/SectionHeader';
 import { MetricCard } from '../components/ui/MetricCard';
 import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/EmptyState';
+import { TrainPicker, type TrainOption } from '../components/train/TrainPicker';
+import { StationPicker, toStationOption, type StationOption } from '../components/station/StationPicker';
 import { useAuth } from '../contexts/AuthContext';
-import type { StationReport, StationReportStatus, StationReportEventType, Train, Alert } from '../types';
+import type { StationReport, StationReportStatus, StationReportEventType, Train, Alert, Station } from '../types';
 import toast from 'react-hot-toast';
 
 const EVENT_TYPES: { value: StationReportEventType; label: string }[] = [
@@ -49,7 +52,6 @@ const STATUS_FLOW: Record<StationReportStatus, StationReportStatus[]> = {
 };
 
 const emptyForm = {
-  train_id: '',
   event_type: 'SIGNAL_WAIT' as StationReportEventType,
   severity: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
   description: '',
@@ -64,12 +66,84 @@ export default function StationMaster() {
   const [reports, setReports] = useState<StationReport[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingReport, setEditingReport] = useState<StationReport | null>(null);
-  const [selectedStationId, setSelectedStationId] = useState<number | null>(user?.station_id || null);
+  const [selectedStation, setSelectedStation] = useState<StationOption | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [formData, setFormData] = useState(emptyForm);
+  const [selectedTrain, setSelectedTrain] = useState<TrainOption | null>(null);
+  const [routeOptions, setRouteOptions] = useState<StationOption[] | null>(null);
+  const [routeStatus, setRouteStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle');
+  const routeReqRef = useRef(0);
+  const stationPrefilled = useRef(false);
+
+  const selectedStationId = selectedStation?.id ?? null;
+
+  const allStationOptions = useMemo(() => stations.map(toStationOption), [stations]);
+
+  const resetRoute = () => {
+    routeReqRef.current++;
+    setRouteOptions(null);
+    setRouteStatus('idle');
+  };
+
+  const handleTrainChange = (opt: TrainOption | null) => {
+    setSelectedTrain(opt);
+    setSelectedStation(null);
+    if (!opt) {
+      routeReqRef.current++;
+      setRouteOptions(null);
+      setRouteStatus('idle');
+      return;
+    }
+    const reqId = ++routeReqRef.current;
+    setRouteStatus('loading');
+    setRouteOptions(null);
+    loadTrainRoute(opt.train_number, opt.trainId)
+      .then((route) => {
+        if (reqId !== routeReqRef.current) return;
+        if (!route.length) {
+          setRouteOptions([]);
+          setRouteStatus('unavailable');
+          return;
+        }
+        setRouteOptions(route.map((s) => ({ key: s.code, id: s.station_id, code: s.code, name: s.name })));
+        setRouteStatus('ready');
+        if (user?.station_id) {
+          const mine = route.find((s) => s.station_id === user.station_id);
+          if (mine) setSelectedStation({ key: mine.code, id: mine.station_id, code: mine.code, name: mine.name });
+        }
+      })
+      .catch(() => {
+        if (reqId !== routeReqRef.current) return;
+        setRouteOptions([]);
+        setRouteStatus('unavailable');
+      });
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    stationApi
+      .list({ page_size: 100 })
+      .then((res) => {
+        if (!mounted) return;
+        const raw = res.data as unknown;
+        const list = Array.isArray(raw) ? raw : (raw as { stations?: Station[] } | undefined)?.stations ?? [];
+        setStations(list);
+        if (user?.station_id && !stationPrefilled.current) {
+          const mine = list.find((s) => s.id === user.station_id);
+          if (mine) {
+            setSelectedStation(toStationOption(mine));
+            stationPrefilled.current = true;
+          }
+        }
+      })
+      .catch(() => { /* ignore */ });
+    return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!selectedStationId) {
@@ -104,7 +178,6 @@ export default function StationMaster() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStationId) return;
     try {
       if (editingReport) {
         await stationApi.updateReport(editingReport.id, {
@@ -116,8 +189,21 @@ export default function StationMaster() {
         });
         toast.success('Report updated');
       } else {
+        if (!selectedTrain) {
+          toast.error('Select a train for the report');
+          return;
+        }
+        if (selectedTrain.source !== 'DB' || !selectedTrain.trainId) {
+          toast.error('This train only exists in the SIH catalogue and cannot be attached to a station report. Select a registered train (e.g. 12303).');
+          return;
+        }
+        if (!selectedStationId) {
+          toast.error('Select a station before creating a report.');
+          return;
+        }
         await stationApi.createReport(selectedStationId, {
-          train_id: parseInt(formData.train_id),
+          station_id: selectedStationId,
+          train_id: selectedTrain.trainId,
           event_type: formData.event_type,
           severity: formData.severity,
           description: formData.description,
@@ -129,7 +215,9 @@ export default function StationMaster() {
       }
       setShowCreateModal(false);
       setEditingReport(null);
+      setSelectedTrain(null);
       setFormData(emptyForm);
+      resetRoute();
     } catch {
       toast.error('Failed to save report');
     }
@@ -137,8 +225,9 @@ export default function StationMaster() {
 
   const handleEdit = (report: StationReport) => {
     setEditingReport(report);
+    const t = trains.find((x) => x.id === report.train_id);
+    setSelectedTrain(t ? { key: `db-${t.id}`, train_number: t.train_number, train_name: t.train_name, origin: t.origin_station?.name ?? '', destination: t.destination_station?.name ?? '', source: 'DB', trainId: t.id } : null);
     setFormData({
-      train_id: report.train_id.toString(),
       event_type: report.event_type,
       severity: report.severity,
       description: report.description,
@@ -169,7 +258,7 @@ export default function StationMaster() {
         title="Station Operations"
         subtitle="Operational event reporting & extended halt management"
         right={
-          <button onClick={() => { setEditingReport(null); setFormData(emptyForm); setShowCreateModal(true); }} className="btn-primary btn-sm">
+          <button onClick={() => { setEditingReport(null); setSelectedTrain(null); setFormData(emptyForm); resetRoute(); setShowCreateModal(true); }} className="btn-primary btn-sm">
             <Plus className="h-4 w-4" /> New Report
           </button>
         }
@@ -185,14 +274,14 @@ export default function StationMaster() {
       <div className="card">
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
           <label className="text-sm text-gray-500">Station:</label>
-          <select
-            value={selectedStationId || ''}
-            onChange={(e) => setSelectedStationId(e.target.value ? parseInt(e.target.value) : null)}
-            className="input h-8 w-auto text-sm"
-          >
-            <option value="">All stations</option>
-            {user?.station_id && <option value={user.station_id}>My Station (ID: {user.station_id})</option>}
-          </select>
+          <div className="w-72">
+            <StationPicker
+              options={allStationOptions}
+              value={selectedStation}
+              onChange={setSelectedStation}
+              placeholder="Search station code or name…"
+            />
+          </div>
           <label className="text-sm text-gray-500 ml-2">Status:</label>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="input h-8 w-auto text-sm">
             <option value="all">All statuses</option>
@@ -270,14 +359,31 @@ export default function StationMaster() {
       )}
 
       {showCreateModal && (
-        <Modal title={editingReport ? 'Edit Station Report' : 'Create Station Report'} onClose={() => { setShowCreateModal(false); setEditingReport(null); }}>
+        <Modal title={editingReport ? 'Edit Station Report' : 'Create Station Report'} onClose={() => { setShowCreateModal(false); setEditingReport(null); setSelectedTrain(null); resetRoute(); }}>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!editingReport && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Station</label>
+                <StationPicker
+                  mode="route"
+                  routeStatus={routeStatus}
+                  options={routeOptions}
+                  value={selectedStation}
+                  onChange={setSelectedStation}
+                  placeholder="Search route station code or name…"
+                  hint="Only stations on the selected train's route are shown."
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Train</label>
-              <select value={formData.train_id} onChange={(e) => setFormData({ ...formData, train_id: e.target.value })} className="input" required>
-                <option value="">Select train</option>
-                {trains.map((t) => <option key={t.id} value={t.id}>{t.train_number} — {t.train_name}</option>)}
-              </select>
+              <TrainPicker
+                value={selectedTrain}
+                onChange={handleTrainChange}
+                disabled={!!editingReport}
+                placeholder="Search train number or name…"
+                hint={editingReport ? 'The train cannot be changed while editing a report.' : 'Search registered trains and the SIH catalogue (e.g. 02082, 01101). Only registered trains can be attached to a report.'}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -312,7 +418,7 @@ export default function StationMaster() {
               <input type="number" min="0" value={formData.delay_impact_minutes} onChange={(e) => setFormData({ ...formData, delay_impact_minutes: e.target.value })} className="input" />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => { setShowCreateModal(false); setEditingReport(null); }} className="btn-secondary">Cancel</button>
+              <button type="button" onClick={() => { setShowCreateModal(false); setEditingReport(null); setSelectedTrain(null); resetRoute(); }} className="btn-secondary">Cancel</button>
               <button type="submit" className="btn-primary">{editingReport ? 'Update Report' : 'Create Report'}</button>
             </div>
           </form>

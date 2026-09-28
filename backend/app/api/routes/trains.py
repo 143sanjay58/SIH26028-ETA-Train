@@ -44,6 +44,23 @@ async def list_trains(
     )
 
 
+@router.get("/search", response_model=List[CatalogueTrainResponse])
+async def search_trains(
+    q: str = Query(..., min_length=3, max_length=24),
+    limit: int = Query(8, ge=1, le=20),
+    current_user: User = Depends(get_current_active_user),
+):
+    from backend.app.services.sih_catalogue import get_catalogue
+
+    catalogue = get_catalogue()
+    results = []
+    for number in catalogue.search_trains(q, limit=limit):
+        train_data = catalogue.get_train(number)
+        if train_data:
+            results.append(CatalogueTrainResponse(**train_data))
+    return results
+
+
 @router.post("", response_model=TrainResponse, status_code=status.HTTP_201_CREATED)
 async def create_train(
     train_data: TrainCreate,

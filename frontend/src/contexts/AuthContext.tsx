@@ -5,9 +5,9 @@ import type { User } from '../types';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,22 +25,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<User | null> => {
     try {
       const response = await authApi.me();
       setUser(response.data);
+      return response.data;
     } catch {
       localStorage.removeItem('access_token');
       setUser(null);
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string): Promise<User | null> => {
     const response = await authApi.login(username, password);
     localStorage.setItem('access_token', response.data.access_token);
-    await refreshUser();
+    return refreshUser();
   };
 
   const logout = () => {

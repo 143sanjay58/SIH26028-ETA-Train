@@ -12,8 +12,17 @@ class UserBase(BaseModel):
     station_id: Optional[int] = None
 
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    """Payload for public self-registration.
+
+    Public registration always creates a PASSENGER account; the caller is
+    not allowed to request a privileged role.
+    """
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+    full_name: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=8, max_length=100)
+    station_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):

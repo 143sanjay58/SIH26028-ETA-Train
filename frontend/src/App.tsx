@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { AppShell } from './components/layout/AppShell';
+import { roleHome } from './utils/helpers';
 import { Loader2 } from 'lucide-react';
 import Login from './pages/Login';
 import PassengerDashboard from './pages/PassengerDashboard';
@@ -35,8 +36,18 @@ function PrivateRoute({ children, allowedRoles }: { children: React.ReactNode; a
 
   if (isLoading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to={roleHome[user.role] || '/'} replace />;
   return <>{children}</>;
+}
+
+function HomeRedirect() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <FullScreenLoader />;
+  if (!user) return <Navigate to="/login" replace />;
+  const dest = roleHome[user.role];
+  if (!dest || dest === '/') return <PassengerDashboard />;
+  return <Navigate to={dest} replace />;
 }
 
 function App() {
@@ -45,9 +56,9 @@ function App() {
   if (isLoading) return <FullScreenLoader />;
 
   const rest =
-    user?.role === 'STATION_STAFF' ? <Navigate to="/co-pilot" replace /> :
-    user && ['SUPERVISOR', 'OPERATOR', 'ADMIN'].includes(user.role) ? <Navigate to="/control-room" replace /> :
-    user ? <Navigate to="/" replace /> : null;
+    user && roleHome[user.role] !== '/'
+      ? <Navigate to={roleHome[user.role]} replace />
+      : null;
 
   return (
     <Routes>
@@ -61,7 +72,7 @@ function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<PassengerDashboard />} />
+        <Route index element={<HomeRedirect />} />
         <Route path="train/:trainNumber" element={<TrainDetail />} />
         <Route path="trains" element={<LiveTrains />} />
         <Route path="map" element={<RailwayMapPage />} />
@@ -69,7 +80,14 @@ function App() {
         <Route path="delay-intel" element={<DelayIntelligence />} />
         <Route path="weather" element={<WeatherIntelligence />} />
         <Route path="analytics" element={<Analytics />} />
-        <Route path="simulation" element={<SimulationLab />} />
+        <Route
+          path="simulation"
+          element={
+            <PrivateRoute allowedRoles={['OPERATOR', 'ADMIN']}>
+              <SimulationLab />
+            </PrivateRoute>
+          }
+        />
         <Route path="alerts" element={<AlertCenter />} />
         <Route path="system-health" element={<SystemHealth />} />
         <Route path="settings" element={<Settings />} />
